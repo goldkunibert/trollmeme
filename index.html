@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
 <title>Trollmeme Prospekt</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="icon" href="favicon.png" type="image/png" sizes="64x64">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=Archivo+Narrow:wght@500;700&display=swap" rel="stylesheet">
@@ -66,13 +69,17 @@ main { max-width: 1500px; margin: 0 auto; padding: 14px 16px 60px; }
 
 dialog { width: min(920px, calc(100vw - 24px)); max-height: calc(100vh - 24px); padding: 0; border: 4px solid var(--tinte); background: var(--papier); color: var(--tinte); }
 dialog::backdrop { background: rgb(0 0 0 / .75); }
-.gross-bild { display: block; max-width: 100%; max-height: calc(100vh - 170px); margin: 0 auto; }
+.gross-bild { display: block; max-width: 100%; max-height: calc(100vh - 225px); margin: 0 auto; }
 .dlg-fuss { padding: 12px; border-top: 4px solid var(--tinte); }
 .dlg-fuss h2 { margin: 0 0 8px; font-size: 20px; line-height: 1.2; overflow-wrap: anywhere; }
 .aktionen { display: flex; flex-wrap: wrap; gap: 8px; }
 .aktionen > * { padding: 8px 14px; border: 3px solid var(--tinte); font-weight: 700; font-size: 16px; cursor: pointer; text-decoration: none; background: none; color: var(--tinte); }
 .aktionen .haupt { background: var(--rot); color: #fff; }
 .aktionen .haupt:hover { background: var(--dunkelrot); }
+.blaettern { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
+.blaettern button { padding: 6px 12px; border: 3px solid var(--tinte); background: var(--gelb); font-weight: 700; font-size: 16px; cursor: pointer; }
+.blaettern button:disabled { opacity: .4; cursor: default; }
+.blaettern span { flex: 1; text-align: center; font-weight: 700; }
 
 @media (max-width: 560px) {
   .raster { columns: 2 140px; column-gap: 8px; }
@@ -112,6 +119,11 @@ dialog::backdrop { background: rgb(0 0 0 / .75); }
       <a id="dlg-laden" download>GIF herunterladen</a>
       <button id="dlg-zu" type="button">Schließen</button>
     </div>
+    <div class="blaettern">
+      <button id="dlg-zurueck" type="button">Vorheriges</button>
+      <span id="dlg-pos" aria-live="polite"></span>
+      <button id="dlg-weiter" type="button">Nächstes</button>
+    </div>
   </div>
 </dialog>
 <script>
@@ -119,7 +131,7 @@ const $ = id => document.getElementById(id);
 const norm = s => s.toLowerCase().replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss').normalize('NFD').replace(/[̀-ͯ]/g, '');
 const pfad = x => `gifs/${x.p || x.c}/${encodeURIComponent(x.n).replace(/'/g, '%27')}.gif`;
 const link = x => new URL(pfad(x), location.href).href;
-let items = [], cats = [], kat = '', aktuell = null;
+let items = [], cats = [], kat = '', aktuell = null, sichtbar = [];
 
 async function kopieren(x) {
   const url = link(x);
@@ -212,7 +224,21 @@ function oeffnen(x) {
   $('dlg-kopie').textContent = 'Link kopieren';
   $('dlg-bild-kopie').textContent = 'Bild kopieren';
   $('dlg-bild-kopie').hidden = x.a;
-  $('dlg').showModal();
+  const pos = sichtbar.indexOf(x);
+  $('dlg-pos').textContent = pos >= 0 ? `${pos + 1} von ${sichtbar.length}` : '';
+  const mehrere = pos >= 0 && sichtbar.length > 1;
+  $('dlg-zurueck').disabled = !mehrere;
+  $('dlg-weiter').disabled = !mehrere;
+  if (!$('dlg').open) $('dlg').showModal();
+  // Nachbarn vorladen, damit das Blättern nicht hakt
+  if (mehrere) for (const d of [1, -1]) new Image().src = pfad(sichtbar[(pos + d + sichtbar.length) % sichtbar.length]);
+}
+
+function blaettern(richtung) {
+  if (!sichtbar.length) return;
+  const pos = sichtbar.indexOf(aktuell);
+  if (pos < 0) return oeffnen(sichtbar[0]);
+  oeffnen(sichtbar[(pos + richtung + sichtbar.length) % sichtbar.length]);
 }
 
 function schilder() {
@@ -259,6 +285,7 @@ function suchen(roh) {
 function zeichnen() {
   const roh = $('q').value.trim();
   const liste = suchen(roh).filter(x => !kat || x.c === kat);
+  sichtbar = liste;
   const r = $('raster');
   r.textContent = '';
   const frag = document.createDocumentFragment();
@@ -277,8 +304,10 @@ function zeichnen() {
 let warte;
 $('q').addEventListener('input', () => { clearTimeout(warte); warte = setTimeout(zeichnen, 90); });
 $('reset').onclick = () => { $('q').value = ''; kat = ''; zeichnen(); $('q').focus(); };
-$('zufall').onclick = () => oeffnen(items[Math.floor(Math.random() * items.length)]);
+$('zufall').onclick = () => { if (sichtbar.length) oeffnen(sichtbar[Math.floor(Math.random() * sichtbar.length)]); };
 $('dlg-zu').onclick = () => $('dlg').close();
+$('dlg-zurueck').onclick = () => blaettern(-1);
+$('dlg-weiter').onclick = () => blaettern(1);
 $('dlg').addEventListener('click', e => { if (e.target === $('dlg')) $('dlg').close(); });
 $('dlg').addEventListener('close', () => { $('dlg-bild').removeAttribute('src'); });
 $('dlg-bild-kopie').onclick = async () => {
@@ -288,6 +317,10 @@ $('dlg-bild-kopie').onclick = async () => {
 $('dlg-kopie').onclick = async () => { $('dlg-kopie').textContent = (await kopieren(aktuell)) ? 'Link kopiert' : 'Kopieren fehlgeschlagen'; };
 addEventListener('keydown', e => {
   if (e.key === '/' && document.activeElement !== $('q') && !$('dlg').open) { e.preventDefault(); $('q').focus(); }
+  if ($('dlg').open && (e.key === 'ArrowRight' || e.key === 'ArrowLeft')) {
+    e.preventDefault();
+    blaettern(e.key === 'ArrowRight' ? 1 : -1);
+  }
 });
 
 fetch('data.json').then(r => {
@@ -297,7 +330,10 @@ fetch('data.json').then(r => {
   cats = d.cats;
   const namen = Object.fromEntries(cats.map(c => [c.slug, c.label]));
   const klar = s => ` ${norm(s).replace(/[^a-z0-9]+/g, ' ').trim()} `;
-  items = d.items.map(x => ({ ...x, sn: klar(x.n), s: klar(`${x.n} ${x.t || ''} ${x.k} ${namen[x.c]}`) }));
+  items = d.items.map(x => {
+    const wer = (x.w || []).join(' ');
+    return { ...x, sn: klar(`${x.n} ${wer}`), s: klar(`${x.n} ${wer} ${x.t || ''} ${x.k} ${namen[x.c]}`) };
+  });
   items.sort((a, b) => a.n.localeCompare(b.n, 'de', { numeric: true }));
   const p = new URLSearchParams(location.hash.slice(1));
   $('q').value = p.get('q') || '';
