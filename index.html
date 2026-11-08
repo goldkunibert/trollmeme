@@ -323,7 +323,8 @@ addEventListener('keydown', e => {
   }
 });
 
-fetch('data.json').then(r => {
+// Die Versionsnummer bei jeder Änderung an data.json erhöhen, damit Seite und Daten zusammenpassen.
+fetch('data.json?v=4').then(r => {
   if (!r.ok) throw new Error(r.status);
   return r.json();
 }).then(d => {
@@ -331,7 +332,7 @@ fetch('data.json').then(r => {
   const namen = Object.fromEntries(cats.map(c => [c.slug, c.label]));
   const klar = s => ` ${norm(s).replace(/[^a-z0-9]+/g, ' ').trim()} `;
   items = d.items.map(x => {
-    const wer = (x.w || []).join(' ');
+    const wer = Array.isArray(x.wer) ? x.wer.join(' ') : '';
     return { ...x, sn: klar(`${x.n} ${wer}`), s: klar(`${x.n} ${wer} ${x.t || ''} ${x.k} ${namen[x.c]}`) };
   });
   items.sort((a, b) => a.n.localeCompare(b.n, 'de', { numeric: true }));
@@ -340,7 +341,8 @@ fetch('data.json').then(r => {
   kat = cats.some(c => c.slug === p.get('kat')) ? p.get('kat') : '';
   schilder();
   zeichnen();
-}).catch(() => {
+}).catch(e => {
+  console.error('GIF-Liste:', e);
   $('treffer').textContent = 'Die GIF-Liste konnte nicht geladen werden. Lade die Seite neu.';
 });
 </script>
