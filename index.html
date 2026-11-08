@@ -117,7 +117,7 @@ dialog::backdrop { background: rgb(0 0 0 / .75); }
 <script>
 const $ = id => document.getElementById(id);
 const norm = s => s.toLowerCase().replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss').normalize('NFD').replace(/[̀-ͯ]/g, '');
-const pfad = x => `gifs/${x.c}/${encodeURIComponent(x.n).replace(/'/g, '%27')}.gif`;
+const pfad = x => `gifs/${x.p || x.c}/${encodeURIComponent(x.n).replace(/'/g, '%27')}.gif`;
 const link = x => new URL(pfad(x), location.href).href;
 let items = [], cats = [], kat = '', aktuell = null;
 
