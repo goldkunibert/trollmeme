@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Trollmeme Prospekt</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Archivo+Narrow:wght@500;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --gelb: #ffe100;
+  --rot: #e30613;
+  --dunkelrot: #a3000b;
+  --blau: #0a3d91;
+  --tinte: #1a1a1a;
+  --papier: #ffffff;
+  --meme: Impact, "Anton", "Arial Narrow", sans-serif;
+  --text: "Archivo Narrow", "Arial Narrow", Arial, sans-serif;
+}
+* { box-sizing: border-box; }
+html { scroll-padding-top: 150px; }
+body { margin: 0; background: var(--gelb); color: var(--tinte); font: 500 17px/1.35 var(--text); }
+button, input { font: inherit; color: inherit; }
+:focus-visible { outline: 3px solid var(--blau); outline-offset: 2px; }
+
+.kopf { background: var(--rot); padding: 12px 16px 12px; text-align: center; }
+h1 {
+  margin: 0; color: #fff; font: 400 clamp(38px, 7vw, 72px)/1 var(--meme);
+  text-transform: uppercase; letter-spacing: .01em;
+  -webkit-text-stroke: clamp(2px, .5vw, 5px) #000; paint-order: stroke fill;
+}
+.unterzeile { margin: 8px 0 0; color: #fff; font-size: 19px; font-weight: 700; }
+
+.leiste { position: sticky; top: 0; z-index: 5; background: var(--gelb); border-bottom: 4px solid var(--tinte); padding: 10px 16px 12px; }
+.suche { display: flex; gap: 8px; max-width: 1500px; margin: 0 auto 10px; }
+.suche input { flex: 1; min-width: 0; height: 48px; padding: 0 14px; background: var(--papier); border: 3px solid var(--tinte); font-size: 19px; font-weight: 700; }
+.zufall { flex: none; height: 48px; padding: 0 18px; background: var(--blau); color: #fff; border: 3px solid var(--tinte); font-weight: 700; cursor: pointer; }
+.zufall:hover { background: #072b68; }
+
+/* Kategorien als Preisschilder */
+.schilder { display: flex; gap: 6px; max-width: 1500px; margin: 0 auto; overflow-x: auto; scrollbar-width: thin; padding: 2px; }
+.schild { flex: none; display: inline-flex; align-items: baseline; gap: 7px; padding: 5px 11px; background: var(--papier); border: 2px solid var(--tinte); cursor: pointer; font-weight: 700; font-size: 15px; white-space: nowrap; }
+.schild b { font: 400 18px/1 var(--meme); color: var(--rot); }
+.schild:hover { background: #fff7b0; }
+.schild[aria-pressed="true"] { background: var(--rot); color: #fff; }
+.schild[aria-pressed="true"] b { color: var(--gelb); }
+
+main { max-width: 1500px; margin: 0 auto; padding: 14px 16px 60px; }
+.treffer { margin: 0 0 12px; font-weight: 700; }
+.raster { columns: 5 240px; column-gap: 12px; }
+.karte { break-inside: avoid; margin: 0 0 12px; background: var(--papier); border: 2px solid var(--tinte); position: relative; }
+.bild { display: block; width: 100%; padding: 0; border: 0; background: #eee; cursor: copy; }
+.bild img { display: block; width: 100%; height: auto; }
+.fuss { display: flex; align-items: flex-start; gap: 6px; padding: 7px 8px; border-top: 2px solid var(--tinte); }
+.name { flex: 1; min-width: 0; font-size: 15px; line-height: 1.2; overflow-wrap: anywhere; }
+.gross { flex: none; padding: 2px 8px; background: none; border: 2px solid var(--tinte); font-size: 14px; font-weight: 700; cursor: pointer; }
+.gross:hover { background: var(--gelb); }
+.kopiert { position: absolute; top: 8px; left: -2px; padding: 3px 12px 3px 8px; background: var(--rot); color: #fff; font: 400 20px/1.2 var(--meme); }
+.animiert { position: absolute; top: 8px; right: -2px; padding: 2px 8px; background: var(--blau); color: #fff; font-size: 13px; font-weight: 700; pointer-events: none; }
+
+.leer { padding: 40px 16px; text-align: center; }
+.leer p { margin: 0 0 14px; font-size: 20px; font-weight: 700; }
+.leer button { padding: 8px 16px; background: var(--blau); color: #fff; border: 3px solid var(--tinte); font-weight: 700; cursor: pointer; }
+
+dialog { width: min(920px, calc(100vw - 24px)); max-height: calc(100vh - 24px); padding: 0; border: 4px solid var(--tinte); background: var(--papier); color: var(--tinte); }
+dialog::backdrop { background: rgb(0 0 0 / .75); }
+.gross-bild { display: block; max-width: 100%; max-height: calc(100vh - 170px); margin: 0 auto; }
+.dlg-fuss { padding: 12px; border-top: 4px solid var(--tinte); }
+.dlg-fuss h2 { margin: 0 0 8px; font-size: 20px; line-height: 1.2; overflow-wrap: anywhere; }
+.aktionen { display: flex; flex-wrap: wrap; gap: 8px; }
+.aktionen > * { padding: 8px 14px; border: 3px solid var(--tinte); font-weight: 700; font-size: 16px; cursor: pointer; text-decoration: none; background: none; color: var(--tinte); }
+.aktionen .haupt { background: var(--rot); color: #fff; }
+.aktionen .haupt:hover { background: var(--dunkelrot); }
+
+@media (max-width: 560px) {
+  .raster { columns: 2 140px; column-gap: 8px; }
+  .karte { margin-bottom: 8px; }
+  .name { font-size: 14px; }
+  html { scroll-padding-top: 130px; }
+}
+</style>
+</head>
+<body>
+<header class="kopf">
+  <h1>Trollmeme Prospekt</h1>
+  <p class="unterzeile" id="unterzeile">Bild anklicken, Link kopieren, in Discord einfügen.</p>
+</header>
+<div class="leiste">
+  <div class="suche">
+    <input id="q" type="search" placeholder="Suchen, z. B. minion, bahn, merz" aria-label="GIFs suchen" autocomplete="off">
+    <button class="zufall" id="zufall" type="button">Zufälliges GIF</button>
+  </div>
+  <div class="schilder" id="schilder" role="group" aria-label="Kategorien"></div>
+</div>
+<main>
+  <p class="treffer" id="treffer" aria-live="polite"></p>
+  <div class="raster" id="raster"></div>
+  <div class="leer" id="leer" hidden>
+    <p id="leer-text"></p>
+    <button id="reset" type="button">Alle GIFs zeigen</button>
+  </div>
+</main>
+<dialog id="dlg" aria-labelledby="dlg-name">
+  <img class="gross-bild" id="dlg-bild" alt="">
+  <div class="dlg-fuss">
+    <h2 id="dlg-name"></h2>
+    <div class="aktionen">
+      <button class="haupt" id="dlg-kopie" type="button">Link kopieren</button>
+      <a id="dlg-laden" download>GIF herunterladen</a>
+      <button id="dlg-zu" type="button">Schließen</button>
+    </div>
+  </div>
+</dialog>
+<script>
+const $ = id => document.getElementById(id);
+const norm = s => s.toLowerCase().replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss').normalize('NFD').replace(/[̀-ͯ]/g, '');
+const pfad = x => `gifs/${x.c}/${encodeURIComponent(x.n).replace(/'/g, '%27')}.gif`;
+const link = x => new URL(pfad(x), location.href).href;
+let items = [], cats = [], kat = '', aktuell = null;
+
+async function kopieren(x) {
+  const url = link(x);
+  try { await navigator.clipboard.writeText(url); return true; }
+  catch {
+    const t = document.createElement('textarea');
+    t.value = url; document.body.append(t); t.select();
+    const ok = document.execCommand('copy'); t.remove(); return ok;
+  }
+}
+
+function karte(x) {
+  const k = document.createElement('article');
+  k.className = 'karte';
+  const b = document.createElement('button');
+  b.className = 'bild'; b.type = 'button';
+  b.setAttribute('aria-label', `Link kopieren: ${x.n}`);
+  const img = new Image();
+  img.loading = 'lazy'; img.decoding = 'async'; img.src = `thumbs/${x.i}.webp`;
+  img.width = x.w; img.height = x.h; img.alt = x.n;
+  b.append(img);
+  b.onclick = async () => {
+    const ok = await kopieren(x);
+    k.querySelector('.kopiert')?.remove();
+    const m = document.createElement('span');
+    m.className = 'kopiert'; m.setAttribute('role', 'status');
+    m.textContent = ok ? 'LINK KOPIERT' : 'KOPIEREN FEHLGESCHLAGEN';
+    k.append(m);
+    setTimeout(() => m.remove(), 1400);
+  };
+  const f = document.createElement('div');
+  f.className = 'fuss';
+  const n = document.createElement('span');
+  n.className = 'name'; n.textContent = x.n;
+  const g = document.createElement('button');
+  g.className = 'gross'; g.type = 'button'; g.textContent = 'Groß';
+  g.setAttribute('aria-label', `Groß ansehen: ${x.n}`);
+  g.onclick = () => oeffnen(x);
+  f.append(n, g);
+  k.append(b, f);
+  if (x.a) {
+    const a = document.createElement('span');
+    a.className = 'animiert'; a.textContent = 'Animiert';
+    k.append(a);
+  }
+  return k;
+}
+
+function oeffnen(x) {
+  aktuell = x;
+  $('dlg-bild').src = pfad(x); $('dlg-bild').alt = x.n;
+  $('dlg-name').textContent = x.n;
+  $('dlg-laden').href = pfad(x); $('dlg-laden').download = x.n + '.gif';
+  $('dlg-kopie').textContent = 'Link kopieren';
+  $('dlg').showModal();
+}
+
+function schilder() {
+  const s = $('schilder'); s.textContent = '';
+  const add = (slug, label, count) => {
+    const b = document.createElement('button');
+    b.className = 'schild'; b.type = 'button';
+    b.setAttribute('aria-pressed', String(kat === slug));
+    b.append(label + ' ');
+    const c = document.createElement('b'); c.textContent = count; b.append(c);
+    b.onclick = () => { kat = slug; zeichnen(); };
+    s.append(b);
+  };
+  add('', 'Alle', items.length);
+  cats.forEach(c => add(c.slug, c.label, c.count));
+}
+
+function zeichnen() {
+  const roh = $('q').value.trim();
+  const worte = norm(roh).split(/\s+/).filter(Boolean);
+  const liste = items.filter(x => (!kat || x.c === kat) && worte.every(w => x.s.includes(w)));
+  const r = $('raster');
+  r.textContent = '';
+  const frag = document.createDocumentFragment();
+  liste.forEach(x => frag.append(x.el ||= karte(x)));
+  r.append(frag);
+  [...$('schilder').children].forEach((b, i) => b.setAttribute('aria-pressed', String((i === 0 ? '' : cats[i - 1].slug) === kat)));
+  $('treffer').textContent = liste.length === 1 ? '1 GIF' : `${liste.length} GIFs`;
+  $('leer').hidden = liste.length > 0;
+  if (!liste.length) $('leer-text').textContent = roh ? `Kein GIF passt zu „${roh}“. Probier ein kürzeres oder englisches Wort.` : 'In dieser Kategorie gibt es keine GIFs.';
+  const p = new URLSearchParams();
+  if (roh) p.set('q', roh);
+  if (kat) p.set('kat', kat);
+  history.replaceState(null, '', p.size ? `#${p}` : location.pathname);
+}
+
+let warte;
+$('q').addEventListener('input', () => { clearTimeout(warte); warte = setTimeout(zeichnen, 90); });
+$('reset').onclick = () => { $('q').value = ''; kat = ''; zeichnen(); $('q').focus(); };
+$('zufall').onclick = () => oeffnen(items[Math.floor(Math.random() * items.length)]);
+$('dlg-zu').onclick = () => $('dlg').close();
+$('dlg').addEventListener('click', e => { if (e.target === $('dlg')) $('dlg').close(); });
+$('dlg').addEventListener('close', () => { $('dlg-bild').removeAttribute('src'); });
+$('dlg-kopie').onclick = async () => { $('dlg-kopie').textContent = (await kopieren(aktuell)) ? 'Link kopiert' : 'Kopieren fehlgeschlagen'; };
+addEventListener('keydown', e => {
+  if (e.key === '/' && document.activeElement !== $('q') && !$('dlg').open) { e.preventDefault(); $('q').focus(); }
+});
+
+fetch('data.json').then(r => {
+  if (!r.ok) throw new Error(r.status);
+  return r.json();
+}).then(d => {
+  cats = d.cats;
+  const namen = Object.fromEntries(cats.map(c => [c.slug, c.label]));
+  items = d.items.map(x => ({ ...x, s: norm(`${x.n} ${x.k} ${namen[x.c]}`) }));
+  items.sort((a, b) => a.n.localeCompare(b.n, 'de', { numeric: true }));
+  const p = new URLSearchParams(location.hash.slice(1));
+  $('q').value = p.get('q') || '';
+  kat = cats.some(c => c.slug === p.get('kat')) ? p.get('kat') : '';
+  schilder();
+  zeichnen();
+}).catch(() => {
+  $('treffer').textContent = 'Die GIF-Liste konnte nicht geladen werden. Lade die Seite neu.';
+});
+</script>
+</body>
+</html>
