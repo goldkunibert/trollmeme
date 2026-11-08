@@ -2,4 +2,4 @@
 
 Durchsuchbare GIF-Bibliothek: https://goldkunibert.github.io/trollmeme/
 
-Bild anklicken, Link kopieren, in Discord einfügen.
+Bild anklicken, dann in Discord mit Strg+V einfügen.

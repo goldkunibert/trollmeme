@@ -85,11 +85,11 @@ dialog::backdrop { background: rgb(0 0 0 / .75); }
 <body>
 <header class="kopf">
   <h1>Trollmeme Prospekt</h1>
-  <p class="unterzeile" id="unterzeile">Bild anklicken, Link kopieren, in Discord einfügen.</p>
+  <p class="unterzeile" id="unterzeile">Bild anklicken, dann in Discord mit Strg+V einfügen.</p>
 </header>
 <div class="leiste">
   <div class="suche">
-    <input id="q" type="search" placeholder="Suchen, z. B. minion, bahn, merz" aria-label="GIFs suchen" autocomplete="off">
+    <input id="q" type="search" placeholder="Suchen, auch nach Text im Bild" aria-label="GIFs suchen" autocomplete="off">
     <button class="zufall" id="zufall" type="button">Zufälliges GIF</button>
   </div>
   <div class="schilder" id="schilder" role="group" aria-label="Kategorien"></div>
@@ -107,7 +107,8 @@ dialog::backdrop { background: rgb(0 0 0 / .75); }
   <div class="dlg-fuss">
     <h2 id="dlg-name"></h2>
     <div class="aktionen">
-      <button class="haupt" id="dlg-kopie" type="button">Link kopieren</button>
+      <button class="haupt" id="dlg-bild-kopie" type="button">Bild kopieren</button>
+      <button id="dlg-kopie" type="button">Link kopieren</button>
       <a id="dlg-laden" download>GIF herunterladen</a>
       <button id="dlg-zu" type="button">Schließen</button>
     </div>
@@ -130,24 +131,56 @@ async function kopieren(x) {
   }
 }
 
+// Browser können nur PNG in die Zwischenablage legen. Einzelbilder gehen so ohne Verlust,
+// animierte GIFs würden stillstehen, deshalb wird dort der Link kopiert.
+function alsPng(x) {
+  return new Promise((ok, fehler) => {
+    const im = new Image();
+    im.onload = () => {
+      const c = document.createElement('canvas');
+      c.width = im.naturalWidth; c.height = im.naturalHeight;
+      c.getContext('2d').drawImage(im, 0, 0);
+      c.toBlob(b => b ? ok(b) : fehler(new Error('png')), 'image/png');
+    };
+    im.onerror = fehler;
+    im.src = pfad(x);
+  });
+}
+
+async function bildKopieren(x) {
+  if (!x.a && window.ClipboardItem && navigator.clipboard?.write) {
+    try {
+      await navigator.clipboard.write([new ClipboardItem({ 'image/png': alsPng(x) })]);
+      return 'BILD KOPIERT';
+    } catch (e) {
+      console.warn('Bild konnte nicht kopiert werden:', e.name, e.message);
+    }
+  }
+  return (await kopieren(x)) ? 'LINK KOPIERT' : 'KOPIEREN FEHLGESCHLAGEN';
+}
+
+function melden(k, text) {
+  k.querySelector('.kopiert')?.remove();
+  const m = document.createElement('span');
+  m.className = 'kopiert'; m.setAttribute('role', 'status');
+  m.textContent = text;
+  k.append(m);
+  setTimeout(() => m.remove(), 1400);
+}
+
 function karte(x) {
   const k = document.createElement('article');
   k.className = 'karte';
   const b = document.createElement('button');
   b.className = 'bild'; b.type = 'button';
-  b.setAttribute('aria-label', `Link kopieren: ${x.n}`);
+  b.setAttribute('aria-label', `${x.a ? 'Link' : 'Bild'} kopieren: ${x.n}`);
   const img = new Image();
   img.loading = 'lazy'; img.decoding = 'async'; img.src = `thumbs/${x.i}.webp`;
   img.width = x.w; img.height = x.h; img.alt = x.n;
   b.append(img);
   b.onclick = async () => {
-    const ok = await kopieren(x);
-    k.querySelector('.kopiert')?.remove();
-    const m = document.createElement('span');
-    m.className = 'kopiert'; m.setAttribute('role', 'status');
-    m.textContent = ok ? 'LINK KOPIERT' : 'KOPIEREN FEHLGESCHLAGEN';
-    k.append(m);
-    setTimeout(() => m.remove(), 1400);
+    melden(k, 'WIRD KOPIERT');
+    melden(k, await bildKopieren(x));
   };
   const f = document.createElement('div');
   f.className = 'fuss';
@@ -157,7 +190,11 @@ function karte(x) {
   g.className = 'gross'; g.type = 'button'; g.textContent = 'Groß';
   g.setAttribute('aria-label', `Groß ansehen: ${x.n}`);
   g.onclick = () => oeffnen(x);
-  f.append(n, g);
+  const l = document.createElement('button');
+  l.className = 'gross'; l.type = 'button'; l.textContent = 'Link';
+  l.setAttribute('aria-label', `Link kopieren: ${x.n}`);
+  l.onclick = async () => melden(k, (await kopieren(x)) ? 'LINK KOPIERT' : 'KOPIEREN FEHLGESCHLAGEN');
+  f.append(n, l, g);
   k.append(b, f);
   if (x.a) {
     const a = document.createElement('span');
@@ -173,6 +210,8 @@ function oeffnen(x) {
   $('dlg-name').textContent = x.n;
   $('dlg-laden').href = pfad(x); $('dlg-laden').download = x.n + '.gif';
   $('dlg-kopie').textContent = 'Link kopieren';
+  $('dlg-bild-kopie').textContent = 'Bild kopieren';
+  $('dlg-bild-kopie').hidden = x.a;
   $('dlg').showModal();
 }
 
@@ -191,10 +230,35 @@ function schilder() {
   cats.forEach(c => add(c.slug, c.label, c.count));
 }
 
+// Füllwörter zählen nicht, solange die Suche noch andere Wörter enthält. Bei längeren Suchen
+// reicht ein Teil der Wörter, die besten Treffer stehen oben.
+const FUELL = new Set('der die das den dem des ein eine einer einen einem und oder aber wie was wer wo wann warum soll sollte sein ist sind war bin bist hat haben ich du er sie es wir ihr man mit von zu im in am an auf aus fuer nicht the a an of is to'.split(' '));
+function suchen(roh) {
+  const alle = norm(roh).split(/[^a-z0-9]+/).filter(Boolean);
+  if (!alle.length) return items;
+  const kern = alle.filter(w => !FUELL.has(w));
+  const worte = kern.length ? kern : alle;
+  const mindestens = worte.length <= 2 ? worte.length : Math.ceil(worte.length * 0.6);
+  const voll = norm(roh).trim();
+  const treffer = [];
+  for (const x of items) {
+    let gefunden = 0, punkte = 0;
+    for (const w of worte) {
+      if (!x.s.includes(w)) continue;
+      gefunden++;
+      punkte += x.s.includes(` ${w} `) ? 3 : 1;
+      if (x.sn.includes(w)) punkte += 2;
+    }
+    if (gefunden < mindestens) continue;
+    if (x.s.includes(voll)) punkte += 10;
+    treffer.push([punkte, x]);
+  }
+  return treffer.sort((a, b) => b[0] - a[0]).map(t => t[1]);
+}
+
 function zeichnen() {
   const roh = $('q').value.trim();
-  const worte = norm(roh).split(/\s+/).filter(Boolean);
-  const liste = items.filter(x => (!kat || x.c === kat) && worte.every(w => x.s.includes(w)));
+  const liste = suchen(roh).filter(x => !kat || x.c === kat);
   const r = $('raster');
   r.textContent = '';
   const frag = document.createDocumentFragment();
@@ -217,6 +281,10 @@ $('zufall').onclick = () => oeffnen(items[Math.floor(Math.random() * items.lengt
 $('dlg-zu').onclick = () => $('dlg').close();
 $('dlg').addEventListener('click', e => { if (e.target === $('dlg')) $('dlg').close(); });
 $('dlg').addEventListener('close', () => { $('dlg-bild').removeAttribute('src'); });
+$('dlg-bild-kopie').onclick = async () => {
+  const t = await bildKopieren(aktuell);
+  $('dlg-bild-kopie').textContent = t === 'BILD KOPIERT' ? 'Bild kopiert' : t === 'LINK KOPIERT' ? 'Link kopiert' : 'Kopieren fehlgeschlagen';
+};
 $('dlg-kopie').onclick = async () => { $('dlg-kopie').textContent = (await kopieren(aktuell)) ? 'Link kopiert' : 'Kopieren fehlgeschlagen'; };
 addEventListener('keydown', e => {
   if (e.key === '/' && document.activeElement !== $('q') && !$('dlg').open) { e.preventDefault(); $('q').focus(); }
@@ -228,7 +296,8 @@ fetch('data.json').then(r => {
 }).then(d => {
   cats = d.cats;
   const namen = Object.fromEntries(cats.map(c => [c.slug, c.label]));
-  items = d.items.map(x => ({ ...x, s: norm(`${x.n} ${x.k} ${namen[x.c]}`) }));
+  const klar = s => ` ${norm(s).replace(/[^a-z0-9]+/g, ' ').trim()} `;
+  items = d.items.map(x => ({ ...x, sn: klar(x.n), s: klar(`${x.n} ${x.t || ''} ${x.k} ${namen[x.c]}`) }));
   items.sort((a, b) => a.n.localeCompare(b.n, 'de', { numeric: true }));
   const p = new URLSearchParams(location.hash.slice(1));
   $('q').value = p.get('q') || '';
