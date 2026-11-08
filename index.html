@@ -114,8 +114,7 @@ dialog::backdrop { background: rgb(0 0 0 / .75); }
   <div class="dlg-fuss">
     <h2 id="dlg-name"></h2>
     <div class="aktionen">
-      <button class="haupt" id="dlg-bild-kopie" type="button">Bild kopieren</button>
-      <button id="dlg-kopie" type="button">Link kopieren</button>
+      <button class="haupt" id="dlg-kopie" type="button">GIF-Link kopieren</button>
       <a id="dlg-laden" download>GIF herunterladen</a>
       <button id="dlg-zu" type="button">Schließen</button>
     </div>
@@ -143,34 +142,6 @@ async function kopieren(x) {
   }
 }
 
-// Browser können nur PNG in die Zwischenablage legen. Einzelbilder gehen so ohne Verlust,
-// animierte GIFs würden stillstehen, deshalb wird dort der Link kopiert.
-function alsPng(x) {
-  return new Promise((ok, fehler) => {
-    const im = new Image();
-    im.onload = () => {
-      const c = document.createElement('canvas');
-      c.width = im.naturalWidth; c.height = im.naturalHeight;
-      c.getContext('2d').drawImage(im, 0, 0);
-      c.toBlob(b => b ? ok(b) : fehler(new Error('png')), 'image/png');
-    };
-    im.onerror = fehler;
-    im.src = pfad(x);
-  });
-}
-
-async function bildKopieren(x) {
-  if (!x.a && window.ClipboardItem && navigator.clipboard?.write) {
-    try {
-      await navigator.clipboard.write([new ClipboardItem({ 'image/png': alsPng(x) })]);
-      return 'BILD KOPIERT';
-    } catch (e) {
-      console.warn('Bild konnte nicht kopiert werden:', e.name, e.message);
-    }
-  }
-  return (await kopieren(x)) ? 'LINK KOPIERT' : 'KOPIEREN FEHLGESCHLAGEN';
-}
-
 function melden(k, text) {
   k.querySelector('.kopiert')?.remove();
   const m = document.createElement('span');
@@ -185,15 +156,18 @@ function karte(x) {
   k.className = 'karte';
   const b = document.createElement('button');
   b.className = 'bild'; b.type = 'button';
-  b.setAttribute('aria-label', `${x.a ? 'Link' : 'Bild'} kopieren: ${x.n}`);
+  b.setAttribute('aria-label', `GIF-Link kopieren: ${x.n}`);
   const img = new Image();
   img.loading = 'lazy'; img.decoding = 'async'; img.src = `thumbs/${x.i}.webp`;
   img.width = x.w; img.height = x.h; img.alt = x.n;
+  // Beim Herausziehen die echte GIF-Datei übergeben, nicht das Vorschaubild.
+  img.addEventListener('dragstart', e => {
+    e.dataTransfer.setData('DownloadURL', `image/gif:${x.n}.gif:${link(x)}`);
+    e.dataTransfer.setData('text/uri-list', link(x));
+    e.dataTransfer.setData('text/plain', link(x));
+  });
   b.append(img);
-  b.onclick = async () => {
-    melden(k, 'WIRD KOPIERT');
-    melden(k, await bildKopieren(x));
-  };
+  b.onclick = async () => melden(k, (await kopieren(x)) ? 'GIF-LINK KOPIERT' : 'KOPIEREN FEHLGESCHLAGEN');
   const f = document.createElement('div');
   f.className = 'fuss';
   const n = document.createElement('span');
@@ -202,11 +176,7 @@ function karte(x) {
   g.className = 'gross'; g.type = 'button'; g.textContent = 'Groß';
   g.setAttribute('aria-label', `Groß ansehen: ${x.n}`);
   g.onclick = () => oeffnen(x);
-  const l = document.createElement('button');
-  l.className = 'gross'; l.type = 'button'; l.textContent = 'Link';
-  l.setAttribute('aria-label', `Link kopieren: ${x.n}`);
-  l.onclick = async () => melden(k, (await kopieren(x)) ? 'LINK KOPIERT' : 'KOPIEREN FEHLGESCHLAGEN');
-  f.append(n, l, g);
+  f.append(n, g);
   k.append(b, f);
   if (x.a) {
     const a = document.createElement('span');
@@ -221,9 +191,7 @@ function oeffnen(x) {
   $('dlg-bild').src = pfad(x); $('dlg-bild').alt = x.n;
   $('dlg-name').textContent = x.n;
   $('dlg-laden').href = pfad(x); $('dlg-laden').download = x.n + '.gif';
-  $('dlg-kopie').textContent = 'Link kopieren';
-  $('dlg-bild-kopie').textContent = 'Bild kopieren';
-  $('dlg-bild-kopie').hidden = x.a;
+  $('dlg-kopie').textContent = 'GIF-Link kopieren';
   const pos = sichtbar.indexOf(x);
   $('dlg-pos').textContent = pos >= 0 ? `${pos + 1} von ${sichtbar.length}` : '';
   const mehrere = pos >= 0 && sichtbar.length > 1;
@@ -310,11 +278,7 @@ $('dlg-zurueck').onclick = () => blaettern(-1);
 $('dlg-weiter').onclick = () => blaettern(1);
 $('dlg').addEventListener('click', e => { if (e.target === $('dlg')) $('dlg').close(); });
 $('dlg').addEventListener('close', () => { $('dlg-bild').removeAttribute('src'); });
-$('dlg-bild-kopie').onclick = async () => {
-  const t = await bildKopieren(aktuell);
-  $('dlg-bild-kopie').textContent = t === 'BILD KOPIERT' ? 'Bild kopiert' : t === 'LINK KOPIERT' ? 'Link kopiert' : 'Kopieren fehlgeschlagen';
-};
-$('dlg-kopie').onclick = async () => { $('dlg-kopie').textContent = (await kopieren(aktuell)) ? 'Link kopiert' : 'Kopieren fehlgeschlagen'; };
+$('dlg-kopie').onclick = async () => { $('dlg-kopie').textContent = (await kopieren(aktuell)) ? 'GIF-Link kopiert' : 'Kopieren fehlgeschlagen'; };
 addEventListener('keydown', e => {
   if (e.key === '/' && document.activeElement !== $('q') && !$('dlg').open) { e.preventDefault(); $('q').focus(); }
   if ($('dlg').open && (e.key === 'ArrowRight' || e.key === 'ArrowLeft')) {
