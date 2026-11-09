@@ -26,7 +26,7 @@ from PIL import Image, ImageDraw, ImageFont
 ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "sticker"
 AUTHOR = "Trollmeme Prospekt"
-TITLE_PREFIX = "Trollmeme"
+TITLE_PREFIX = "Memes"
 
 SIZE = 512
 MARGIN = 8               # transparenter Rand rund um das Bild
@@ -153,36 +153,58 @@ def split(items):
     return [items[k:k + size] for k in range(0, len(items), size)]
 
 
+def plan(data):
+    """Legt fest, welches Bild in welchem Pack landet."""
+    packs = []
+    for nr, cat in enumerate(data["cats"], 1):
+        parts = split([x for x in data["items"] if x["c"] == cat["slug"]])
+        for k, items in enumerate(parts, 1):
+            part = f"{k}/{len(parts)}" if len(parts) > 1 else ""
+            name = f"{nr:02d}-{cat['slug']}" + (f"-{k}" if len(parts) > 1 else "")
+            packs.append({
+                "title": f"{TITLE_PREFIX} {cat['label']} {part}".strip(),
+                "file": f"{name}.wastickers",
+                "label": cat["label"],
+                "part": part,
+                "color": COVER_COLORS[(nr - 1) % len(COVER_COLORS)],
+                "items": items,
+            })
+    return packs
+
+
+def write_index(packs):
+    """packs.json für die Website: Liste der Packs und Bild-ID -> Pack-Nummer."""
+    index = {
+        "packs": [{"t": p["title"], "f": p["file"]} for p in packs],
+        "items": {str(x["i"]): n for n, p in enumerate(packs) for x in p["items"]},
+    }
+    text = json.dumps(index, ensure_ascii=False, separators=(",", ":"))
+    (OUT / "packs.json").write_text(text + "\n", encoding="utf-8")
+
+
 def main():
     data = json.loads((ROOT / "data.json").read_text(encoding="utf-8"))
+    packs = plan(data)
+    write_index(packs)
     for old in OUT.glob("*.wastickers"):
         old.unlink()
 
     total = 0
-    for nr, cat in enumerate(data["cats"], 1):
-        items = [x for x in data["items"] if x["c"] == cat["slug"]]
-        packs = split(items)
-        for k, pack in enumerate(packs, 1):
-            suffix = f" {k}/{len(packs)}" if len(packs) > 1 else ""
-            title = f"{TITLE_PREFIX} {cat['label']}{suffix}"
-            name = f"{nr:02d}-{cat['slug']}" + (f"-{k}" if len(packs) > 1 else "")
-            target = OUT / f"{name}.wastickers"
+    for p in packs:
+        target = OUT / p["file"]
+        with zipfile.ZipFile(target, "w") as zf:
+            write_entry(zf, "title.txt", p["title"])
+            write_entry(zf, "author.txt", AUTHOR)
+            cover = make_cover(p["label"], p["part"], p["color"])
+            write_entry(zf, "cover.png", encode_cover(cover))
+            for j, item in enumerate(p["items"]):
+                with Image.open(gif_path(item)) as im:
+                    img = to_square(pick_frame(im))
+                write_entry(zf, f"{j + 1:02d}.webp", encode_webp(img, MAX_STATIC))
 
-            with zipfile.ZipFile(target, "w") as zf:
-                write_entry(zf, "title.txt", title)
-                write_entry(zf, "author.txt", AUTHOR)
-                color = COVER_COLORS[(nr - 1) % len(COVER_COLORS)]
-                part = f"{k}/{len(packs)}" if len(packs) > 1 else ""
-                cover = make_cover(cat["label"], part, color)
-                write_entry(zf, "cover.png", encode_cover(cover))
-                for j, item in enumerate(pack):
-                    with Image.open(gif_path(item)) as im:
-                        img = to_square(pick_frame(im))
-                    write_entry(zf, f"{j + 1:02d}.webp", encode_webp(img, MAX_STATIC))
-
-            total += len(pack)
-            kb = target.stat().st_size // 1024
-            print(f"{target.name}: {title} ({len(pack)} Sticker, {kb} KB)")
+        total += len(p["items"])
+        kb = target.stat().st_size // 1024
+        print(f"{target.name}: {p['title']} ({len(p['items'])} Sticker, {kb} KB)")
 
     print(f"Fertig: {total} Sticker", file=sys.stderr)
 

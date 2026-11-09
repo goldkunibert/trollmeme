@@ -58,6 +58,7 @@ main { max-width: 1500px; margin: 0 auto; padding: 14px 16px 60px; }
 .bild img { display: block; width: 100%; height: auto; }
 .fuss { display: flex; align-items: flex-start; gap: 6px; padding: 7px 8px; border-top: 2px solid var(--tinte); }
 .name { flex: 1; min-width: 0; font-size: 15px; line-height: 1.2; overflow-wrap: anywhere; }
+.pack { display: block; margin-top: 3px; font-size: 12px; font-weight: 700; color: #666; }
 .gross { flex: none; padding: 2px 8px; background: none; border: 2px solid var(--tinte); font-size: 14px; font-weight: 700; cursor: pointer; }
 .gross:hover { background: var(--gelb); }
 .kopiert { position: absolute; top: 8px; left: -2px; padding: 3px 12px 3px 8px; background: var(--rot); color: #fff; font: 400 20px/1.2 var(--meme); }
@@ -71,6 +72,7 @@ dialog { width: min(920px, calc(100vw - 24px)); max-height: calc(100vh - 24px); 
 dialog::backdrop { background: rgb(0 0 0 / .75); }
 .gross-bild { display: block; max-width: 100%; max-height: calc(100vh - 225px); margin: 0 auto; }
 .dlg-fuss { padding: 12px; border-top: 4px solid var(--tinte); }
+.dlg-pack { margin: -4px 0 10px; font-size: 15px; font-weight: 700; color: #555; }
 .dlg-fuss h2 { margin: 0 0 8px; font-size: 20px; line-height: 1.2; overflow-wrap: anywhere; }
 .aktionen { display: flex; flex-wrap: wrap; gap: 8px; }
 .aktionen > * { padding: 8px 14px; border: 3px solid var(--tinte); font-weight: 700; font-size: 16px; cursor: pointer; text-decoration: none; background: none; color: var(--tinte); }
@@ -113,9 +115,11 @@ dialog::backdrop { background: rgb(0 0 0 / .75); }
   <img class="gross-bild" id="dlg-bild" alt="">
   <div class="dlg-fuss">
     <h2 id="dlg-name"></h2>
+    <p class="dlg-pack" id="dlg-pack" hidden></p>
     <div class="aktionen">
       <button class="haupt" id="dlg-kopie" type="button">GIF-Link kopieren</button>
       <a id="dlg-laden" download>GIF herunterladen</a>
+      <a id="dlg-sticker" download hidden>Sticker-Pack herunterladen</a>
       <button id="dlg-zu" type="button">Schließen</button>
     </div>
     <div class="blaettern">
@@ -172,6 +176,11 @@ function karte(x) {
   f.className = 'fuss';
   const n = document.createElement('span');
   n.className = 'name'; n.textContent = x.n;
+  if (x.pack) {
+    const p = document.createElement('small');
+    p.className = 'pack'; p.textContent = `Sticker: ${x.pack.t}`;
+    n.append(p);
+  }
   const g = document.createElement('button');
   g.className = 'gross'; g.type = 'button'; g.textContent = 'Groß';
   g.setAttribute('aria-label', `Groß ansehen: ${x.n}`);
@@ -191,6 +200,11 @@ function oeffnen(x) {
   $('dlg-bild').src = pfad(x); $('dlg-bild').alt = x.n;
   $('dlg-name').textContent = x.n;
   $('dlg-laden').href = pfad(x); $('dlg-laden').download = x.n + '.gif';
+  $('dlg-pack').hidden = $('dlg-sticker').hidden = !x.pack;
+  if (x.pack) {
+    $('dlg-pack').textContent = `WhatsApp-Sticker-Pack: ${x.pack.t}`;
+    $('dlg-sticker').href = `sticker/${x.pack.f}`; $('dlg-sticker').download = x.pack.f;
+  }
   $('dlg-kopie').textContent = 'GIF-Link kopieren';
   const pos = sichtbar.indexOf(x);
   $('dlg-pos').textContent = pos >= 0 ? `${pos + 1} von ${sichtbar.length}` : '';
@@ -287,17 +301,20 @@ addEventListener('keydown', e => {
   }
 });
 
-// Die Versionsnummer bei jeder Änderung an data.json erhöhen, damit Seite und Daten zusammenpassen.
-fetch('data.json?v=6').then(r => {
+// Die Versionsnummern bei jeder Änderung an data.json bzw. sticker/packs.json erhöhen,
+// damit Seite und Daten zusammenpassen.
+const sticker = fetch('sticker/packs.json?v=1').then(r => r.ok ? r.json() : null).catch(() => null);
+Promise.all([fetch('data.json?v=6').then(r => {
   if (!r.ok) throw new Error(r.status);
   return r.json();
-}).then(d => {
+}), sticker]).then(([d, st]) => {
   cats = d.cats;
   const namen = Object.fromEntries(cats.map(c => [c.slug, c.label]));
   const klar = s => ` ${norm(s).replace(/[^a-z0-9]+/g, ' ').trim()} `;
   items = d.items.map(x => {
     const wer = Array.isArray(x.wer) ? x.wer.join(' ') : '';
-    return { ...x, sn: klar(`${x.n} ${wer}`), s: klar(`${x.n} ${wer} ${x.t || ''} ${x.k} ${namen[x.c]}`) };
+    const pack = st?.packs[st.items[x.i]] || null;
+    return { ...x, pack, sn: klar(`${x.n} ${wer}`), s: klar(`${x.n} ${wer} ${x.t || ''} ${x.k} ${namen[x.c]}`) };
   });
   items.sort((a, b) => a.n.localeCompare(b.n, 'de', { numeric: true }));
   const p = new URLSearchParams(location.hash.slice(1));
